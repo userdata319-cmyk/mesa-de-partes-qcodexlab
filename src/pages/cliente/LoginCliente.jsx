@@ -42,9 +42,7 @@ export default function LoginCliente() {
             <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
           </svg>
         </div>
-        <h1 style={{ fontSize: 24, fontWeight: 700 }}>Mesa de Partes Virtual</h1>
-        <h2 style={{ fontSize: 16, fontWeight: 600, marginTop: 4 }}>Cámara de comercio Apurímac</h2>
-        <a href='http://www.camara-apurimac.com.pe' target='_blank' rel='noopener noreferrer' style={{ fontSize: 13, color: 'var(--blue)', marginTop: 4 }}>www.camara-apurimac.com.pe</a>
+        <h1 style={{ fontSize: 20, fontWeight: 700 }}>Mesa de Partes Virtual</h1>
         <p style={{ fontSize: 13, color: 'var(--text-3)', marginTop: 4 }}>Acceso para ciudadanos</p>
       </div>
 
@@ -74,7 +72,10 @@ export default function LoginCliente() {
           </Button>
         </form>
 
-        <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border)', textAlign: 'center' }}>
+        <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center' }}>
+          <Link to="/olvide-password" style={{ fontSize: 13, color: 'var(--red)', textDecoration: 'none', fontWeight: 500 }}>
+            ¿Olvidaste tu contraseña?
+          </Link>
           <p style={{ fontSize: 13, color: 'var(--text-3)' }}>
             ¿No tienes cuenta?{' '}
             <Link to="/registro" style={{ color: 'var(--red)', fontWeight: 600, textDecoration: 'none' }}>

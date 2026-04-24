@@ -6,13 +6,14 @@ import { Badge, Button, Card, Spinner } from '../../components/ui'
 import { toast } from '../../components/ui'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
+import Dashboard from './Dashboard'
 
 const ESTADOS       = ['pendiente','en_revision','atendido','rechazado']
 const ESTADO_COLORS = { pendiente:'amber', en_revision:'blue', atendido:'green', rechazado:'red' }
 const ESTADO_LABELS = { pendiente:'Pendiente', en_revision:'En revisión', atendido:'Atendido', rechazado:'Rechazado' }
 
 export default function AdminPage() {
-  const { admin, logoutAdmin } = useAuth()
+  const { admin, logoutAdmin, actualizarAdmin } = useAuth()
   const navigate = useNavigate()
   const [tab,       setTab]       = useState('expedientes') // 'expedientes' | 'usuarios'
   const [data,      setData]      = useState([])
@@ -20,6 +21,7 @@ export default function AdminPage() {
   const [page,      setPage]      = useState(1)
   const [search,    setSearch]    = useState('')
   const [estado,    setEstado]    = useState('')
+  const [tipo,      setTipo]      = useState('')
   const [loading,   setLoading]   = useState(true)
   const [selected,  setSelected]  = useState(null)
   const [fileUrls,  setFileUrls]  = useState([])
@@ -35,6 +37,14 @@ export default function AdminPage() {
   const [newAdmin,  setNewAdmin]  = useState({ dni:'', nombres:'', username:'', password:'' })
   const [newErrs,   setNewErrs]   = useState({})
   const [creating,  setCreating]  = useState(false)
+  // Editar admin
+  const [editAdmin,    setEditAdmin]    = useState(null)
+  const [editForm,     setEditForm]     = useState({ dni:'', nombres:'' })
+  const [editErrs,     setEditErrs]     = useState({})
+  const [editSaving,   setEditSaving]   = useState(false)
+  const [pwAdminForm,  setPwAdminForm]  = useState({ nueva:'', confirmar:'' })
+  const [pwAdminErrs,  setPwAdminErrs]  = useState({})
+  const [pwAdminSaving,setPwAdminSaving]= useState(false)
 
   const LIMIT = 15
 
@@ -43,15 +53,15 @@ export default function AdminPage() {
   const loadExpedientes = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await getSolicitudes({ page, limit: LIMIT, search, estado })
+      const res = await getSolicitudes({ page, limit: LIMIT, search, estado, tipo })
       setData(res.data || [])
       setCount(res.count || 0)
     } catch { toast('Error al cargar solicitudes', 'error') }
     finally  { setLoading(false) }
-  }, [page, search, estado])
+  }, [page, search, estado, tipo])
 
   useEffect(() => { if (tab === 'expedientes') loadExpedientes() }, [loadExpedientes, tab])
-  useEffect(() => { setPage(1) }, [search, estado])
+  useEffect(() => { setPage(1) }, [search, estado, tipo])
 
   async function loadAdmins() {
     setAdmLoading(true)
@@ -60,6 +70,9 @@ export default function AdminPage() {
     finally { setAdmLoading(false) }
   }
   useEffect(() => { if (tab === 'usuarios') loadAdmins() }, [tab])
+  useEffect(() => {
+    if (editAdmin) setEditForm({ dni: editAdmin.dni || '', nombres: editAdmin.nombres || '' })
+  }, [editAdmin])
 
   // Abrir detalle + cargar URLs firmadas
   async function verDetalle(row) {
@@ -127,7 +140,7 @@ export default function AdminPage() {
           </div>
           {/* Tabs */}
           <div style={{ display: 'flex', gap: 2 }}>
-            {[{ key:'expedientes', label:'Expedientes' }, { key:'usuarios', label:'Usuarios' }].map(t => (
+            {[{ key:'dashboard', label:'Dashboard' }, { key:'expedientes', label:'Expedientes' }, { key:'usuarios', label:'Usuarios' }].map(t => (
               <button key={t.key} onClick={() => setTab(t.key)}
                 style={{ padding: '5px 14px', borderRadius: 6, border: 'none', fontSize: 12, fontWeight: 500, cursor: 'pointer', background: tab === t.key ? 'rgba(255,255,255,.12)' : 'transparent', color: tab === t.key ? '#fff' : '#888', transition: 'all .15s' }}>
                 {t.label}
@@ -145,6 +158,9 @@ export default function AdminPage() {
       </header>
 
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '1.5rem 1rem' }}>
+
+        {/* ── TAB DASHBOARD ───────────────────────────────────── */}
+        {tab === 'dashboard' && <Dashboard />}
 
         {/* ── TAB EXPEDIENTES ─────────────────────────────────── */}
         {tab === 'expedientes' && (
@@ -175,6 +191,13 @@ export default function AdminPage() {
                 style={{ padding:'7px 10px', border:'1px solid var(--border)', borderRadius:'var(--radius)', fontSize:13, color:'var(--text-2)', outline:'none', fontFamily:'var(--font)', background:'white' }}>
                 <option value="">Todos los estados</option>
                 {ESTADOS.map(e=><option key={e} value={e}>{ESTADO_LABELS[e]}</option>)}
+              </select>
+              <select value={tipo} onChange={e=>setTipo(e.target.value)}
+                style={{ padding:'7px 10px', border:'1px solid var(--border)', borderRadius:'var(--radius)', fontSize:13, color:'var(--text-2)', outline:'none', fontFamily:'var(--font)', background:'white' }}>
+                <option value="">Todos los tipos</option>
+                <option value="ARBITRAJE">Arbitraje</option>
+                <option value="JPRD">JPRD</option>
+                <option value="OTRAS">Otras</option>
               </select>
               <Button variant="secondary" onClick={loadExpedientes} style={{ padding:'7px 12px' }}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
@@ -215,7 +238,7 @@ export default function AdminPage() {
                       <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
                         <thead>
                           <tr style={{ borderBottom:'1px solid var(--border)', background:'#fafafa' }}>
-                            {['Expediente','Demandante','Demandado','Fecha','Estado','Acción'].map(h=>(
+                            {['Expediente','Tipo','Demandante','Demandado','Fecha','Estado','Acción'].map(h=>(
                               <th key={h} style={{ padding:'10px 12px', textAlign:'left', fontSize:11, fontWeight:600, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'.04em', whiteSpace:'nowrap' }}>{h}</th>
                             ))}
                           </tr>
@@ -227,8 +250,18 @@ export default function AdminPage() {
                               onMouseEnter={e => { if(selected?.id!==row.id) e.currentTarget.style.background='#f0f0f0' }}
                               onMouseLeave={e => { if(selected?.id!==row.id) e.currentTarget.style.background=i%2===0?'white':'#fafafa' }}>
                               <td style={{ padding:'10px 12px', fontFamily:'var(--mono)', fontSize:11, fontWeight:600, color:'var(--red)', whiteSpace:'nowrap' }}>{row.numero_expediente}</td>
-                              <td style={{ padding:'10px 12px', maxWidth:140, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{row.dem_nombres}</td>
-                              <td style={{ padding:'10px 12px', maxWidth:140, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', color:'var(--text-2)' }}>{row.ddo_nombres}</td>
+                              <td style={{ padding:'10px 12px' }}>
+                                {row.tipo_solicitud ? (
+                                  <span style={{ fontSize:10, fontWeight:700, padding:'3px 8px', borderRadius:99, whiteSpace:'nowrap',
+                                    background: row.tipo_solicitud==='ARBITRAJE' ? '#eff6ff' : row.tipo_solicitud==='JPRD' ? '#f0fdf4' : '#fafafa',
+                                    color:      row.tipo_solicitud==='ARBITRAJE' ? 'var(--blue)' : row.tipo_solicitud==='JPRD' ? 'var(--green)' : 'var(--text-3)',
+                                  }}>
+                                    {row.tipo_solicitud}
+                                  </span>
+                                ) : '—'}
+                              </td>
+                              <td style={{ padding:'10px 12px', maxWidth:130, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{row.dem_nombres}</td>
+                              <td style={{ padding:'10px 12px', maxWidth:130, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', color:'var(--text-2)' }}>{row.ddo_nombres}</td>
                               <td style={{ padding:'10px 12px', color:'var(--text-3)', fontSize:11, whiteSpace:'nowrap' }}>
                                 {row.created_at ? format(new Date(row.created_at),'dd/MM/yyyy',{locale:es}) : '—'}
                               </td>
@@ -267,7 +300,15 @@ export default function AdminPage() {
                       </div>
 
                       <div style={{ fontFamily:'var(--mono)', fontSize:16, fontWeight:700, color:'var(--red)', marginBottom:8 }}>{selected.numero_expediente}</div>
-                      <Badge color={ESTADO_COLORS[selected.estado]}>{ESTADO_LABELS[selected.estado]}</Badge>
+                      <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:8 }}>
+                        <Badge color={ESTADO_COLORS[selected.estado]}>{ESTADO_LABELS[selected.estado]}</Badge>
+                        {selected.tipo_solicitud && (
+                          <span style={{ fontSize:10, fontWeight:700, padding:'3px 10px', borderRadius:99,
+                            background: selected.tipo_solicitud==='ARBITRAJE'?'#eff6ff':selected.tipo_solicitud==='JPRD'?'#f0fdf4':'#fafafa',
+                            color:      selected.tipo_solicitud==='ARBITRAJE'?'var(--blue)':selected.tipo_solicitud==='JPRD'?'var(--green)':'var(--text-3)',
+                          }}>{selected.tipo_solicitud}</span>
+                        )}
+                      </div>
 
                       {selected.feedback && (
                         <div style={{ marginTop:12, padding:'10px 12px', background:'#f8fafc', border:'1px solid var(--border)', borderLeft:'3px solid var(--blue)', borderRadius:'0 var(--radius) var(--radius) 0', fontSize:12 }}>
@@ -338,7 +379,7 @@ export default function AdminPage() {
 
         {/* ── TAB USUARIOS ────────────────────────────────────── */}
         {tab === 'usuarios' && (
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 360px', gap:16, alignItems:'start' }}>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 380px', gap:16, alignItems:'start' }}>
 
             {/* Lista admins */}
             <Card style={{ overflow:'hidden' }}>
@@ -349,26 +390,35 @@ export default function AdminPage() {
                 <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
                   <thead>
                     <tr style={{ borderBottom:'1px solid var(--border)', background:'#fafafa' }}>
-                      {['DNI','Nombres','Username','Rol','Estado','Acción'].map(h=>(
-                        <th key={h} style={{ padding:'10px 14px', textAlign:'left', fontSize:11, fontWeight:600, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'.04em' }}>{h}</th>
+                      {['DNI','Nombres','Username','Rol','Estado','Acciones'].map(h=>(
+                        <th key={h} style={{ padding:'10px 12px', textAlign:'left', fontSize:11, fontWeight:600, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'.04em' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {admins.map((a, i) => (
-                      <tr key={a.id} style={{ borderBottom:'1px solid var(--border)', background: i%2===0?'white':'#fafafa' }}>
-                        <td style={{ padding:'10px 14px', fontFamily:'var(--mono)', fontSize:12 }}>{a.dni}</td>
-                        <td style={{ padding:'10px 14px', fontWeight:500 }}>{a.nombres}</td>
-                        <td style={{ padding:'10px 14px', fontFamily:'var(--mono)', fontSize:12, color:'var(--text-2)' }}>{a.username}</td>
-                        <td style={{ padding:'10px 14px' }}><Badge color="blue">{a.rol}</Badge></td>
-                        <td style={{ padding:'10px 14px' }}><Badge color={a.activo?'green':'red'}>{a.activo?'Activo':'Inactivo'}</Badge></td>
-                        <td style={{ padding:'10px 14px' }}>
-                          {a.rol !== 'master' && (
-                            <button onClick={async()=>{ await toggleAdmin(a.id,!a.activo); loadAdmins() }}
-                              style={{ fontSize:11, padding:'3px 10px', border:'1px solid var(--border)', borderRadius:4, cursor:'pointer', background:'white', color:'var(--text-2)' }}>
-                              {a.activo?'Desactivar':'Activar'}
+                      <tr key={a.id} onClick={()=>setEditAdmin(editAdmin?.id===a.id?null:a)}
+                        style={{ borderBottom:'1px solid var(--border)', background: editAdmin?.id===a.id?'var(--red-light)':i%2===0?'white':'#fafafa', cursor:'pointer', transition:'background .1s' }}
+                        onMouseEnter={e=>{ if(editAdmin?.id!==a.id) e.currentTarget.style.background='#f0f0f0' }}
+                        onMouseLeave={e=>{ if(editAdmin?.id!==a.id) e.currentTarget.style.background=i%2===0?'white':'#fafafa' }}>
+                        <td style={{ padding:'10px 12px', fontFamily:'var(--mono)', fontSize:12 }}>{a.dni}</td>
+                        <td style={{ padding:'10px 12px', fontWeight:500, maxWidth:140, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{a.nombres}</td>
+                        <td style={{ padding:'10px 12px', fontFamily:'var(--mono)', fontSize:12, color:'var(--text-2)' }}>{a.username}</td>
+                        <td style={{ padding:'10px 12px' }}><Badge color={a.rol==='master'?'red':'blue'}>{a.rol}</Badge></td>
+                        <td style={{ padding:'10px 12px' }}><Badge color={a.activo?'green':'red'}>{a.activo?'Activo':'Inactivo'}</Badge></td>
+                        <td style={{ padding:'10px 12px' }} onClick={e=>e.stopPropagation()}>
+                          <div style={{ display:'flex', gap:4 }}>
+                            <button onClick={()=>setEditAdmin(editAdmin?.id===a.id?null:a)}
+                              style={{ fontSize:11, padding:'3px 8px', border:'1px solid var(--border)', borderRadius:4, cursor:'pointer', background:'white', color:'var(--text-2)' }}>
+                              Editar
                             </button>
-                          )}
+                            {a.rol !== 'master' && admin?.rol === 'master' && (
+                              <button onClick={async()=>{ await toggleAdmin(a.id,!a.activo); loadAdmins() }}
+                                style={{ fontSize:11, padding:'3px 8px', border:`1px solid ${a.activo?'#fca5a5':'#bbf7d0'}`, borderRadius:4, cursor:'pointer', background: a.activo?'#fee2e2':'var(--green-light)', color: a.activo?'#b91c1c':'var(--green)' }}>
+                                {a.activo?'Desactivar':'Activar'}
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -377,34 +427,130 @@ export default function AdminPage() {
               )}
             </Card>
 
-            {/* Crear admin */}
-            {admin?.rol === 'master' && (
-              <Card style={{ padding:'18px' }}>
-                <h3 style={{ fontSize:14, fontWeight:700, marginBottom:16 }}>Nuevo usuario admin</h3>
-                <form onSubmit={handleCrearAdmin} noValidate style={{ display:'flex', flexDirection:'column', gap:12 }}>
-                  {[
-                    { key:'dni',      label:'DNI',             placeholder:'12345678',  max:8 },
-                    { key:'nombres',  label:'Nombres completos',placeholder:'Juan Pérez García' },
-                    { key:'username', label:'Username',         placeholder:'jperez' },
-                    { key:'password', label:'Contraseña',       placeholder:'Mínimo 6 caracteres', type:'password' },
-                  ].map(f => (
-                    <div key={f.key} style={{ display:'flex', flexDirection:'column', gap:4 }}>
-                      <label style={{ fontSize:11, fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.04em' }}>{f.label}</label>
-                      <input
-                        type={f.type||'text'} placeholder={f.placeholder} maxLength={f.max}
-                        value={newAdmin[f.key]}
-                        onChange={e => { setNewAdmin(x=>({...x,[f.key]:e.target.value})); setNewErrs(x=>({...x,[f.key]:null})) }}
-                        style={{ padding:'8px 12px', border:`1px solid ${newErrs[f.key]?'var(--red)':'var(--border)'}`, borderRadius:'var(--radius)', fontSize:13, outline:'none', fontFamily: f.key==='username'?'var(--mono)':'var(--font)' }}
-                      />
-                      {newErrs[f.key] && <span style={{ fontSize:11, color:'var(--red)' }}>{newErrs[f.key]}</span>}
+            {/* Panel derecho: editar o crear */}
+            <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+
+              {/* Panel editar admin seleccionado */}
+              {editAdmin && (
+                <Card style={{ padding:'18px' }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
+                    <h3 style={{ fontSize:14, fontWeight:700 }}>Editar usuario</h3>
+                    <button onClick={()=>setEditAdmin(null)} style={{ background:'none',border:'none',cursor:'pointer',color:'var(--text-3)',fontSize:18 }}>×</button>
+                  </div>
+
+                  {/* Editar datos */}
+                  <form onSubmit={async(e)=>{
+                    e.preventDefault()
+                    const errs = {}
+                    if (!editForm.nombres.trim()) errs.nombres = 'Obligatorio'
+                    if (admin?.rol==='master' && (!editForm.dni || editForm.dni.length < 8)) errs.dni = 'DNI inválido'
+                    setEditErrs(errs)
+                    if (Object.keys(errs).length) return
+                    setEditSaving(true)
+                    try {
+                      const campos = { nombres: editForm.nombres }
+                      if (admin?.rol === 'master') campos.dni = editForm.dni
+                      await actualizarAdmin(editAdmin.id, campos)
+                      toast('Usuario actualizado', 'success')
+                      loadAdmins()
+                      setEditAdmin(a => ({ ...a, ...campos }))
+                    } catch(err){ toast(err.message,'error') }
+                    finally { setEditSaving(false) }
+                  }} noValidate style={{ display:'flex', flexDirection:'column', gap:10, marginBottom:14, paddingBottom:14, borderBottom:'1px solid var(--border)' }}>
+                    <p style={{ fontSize:11, fontWeight:600, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'.04em' }}>Datos personales</p>
+
+                    {/* DNI — solo master puede editar */}
+                    <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
+                      <label style={{ fontSize:11, fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.04em' }}>
+                        DNI {admin?.rol !== 'master' && <span style={{ color:'var(--text-3)', fontWeight:400 }}>(solo master)</span>}
+                      </label>
+                      {admin?.rol === 'master' ? (
+                        <input value={editForm.dni} maxLength={8}
+                          onChange={e=>{ setEditForm(f=>({...f,dni:e.target.value.replace(/\D/g,'')})); setEditErrs(x=>({...x,dni:null})) }}
+                          style={{ padding:'8px 12px', border:`1px solid ${editErrs.dni?'var(--red)':'var(--border)'}`, borderRadius:'var(--radius)', fontSize:13, outline:'none', fontFamily:'var(--mono)' }}/>
+                      ) : (
+                        <div style={{ padding:'8px 12px', background:'#f4f4f5', border:'1px solid var(--border)', borderRadius:'var(--radius)', fontSize:13, fontFamily:'var(--mono)', color:'var(--text-2)' }}>{editAdmin.dni}</div>
+                      )}
+                      {editErrs.dni && <span style={{ fontSize:11, color:'var(--red)' }}>{editErrs.dni}</span>}
                     </div>
-                  ))}
-                  <Button type="submit" loading={creating} style={{ marginTop:4, width:'100%', justifyContent:'center' }}>
-                    Crear usuario
-                  </Button>
-                </form>
-              </Card>
-            )}
+
+                    <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
+                      <label style={{ fontSize:11, fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.04em' }}>Nombres completos</label>
+                      <input value={editForm.nombres}
+                        onChange={e=>{ setEditForm(f=>({...f,nombres:e.target.value})); setEditErrs(x=>({...x,nombres:null})) }}
+                        style={{ padding:'8px 12px', border:`1px solid ${editErrs.nombres?'var(--red)':'var(--border)'}`, borderRadius:'var(--radius)', fontSize:13, outline:'none', fontFamily:'var(--font)' }}/>
+                      {editErrs.nombres && <span style={{ fontSize:11, color:'var(--red)' }}>{editErrs.nombres}</span>}
+                    </div>
+
+                    <Button type="submit" loading={editSaving} style={{ width:'100%', justifyContent:'center', padding:'8px' }}>
+                      Guardar datos
+                    </Button>
+                  </form>
+
+                  {/* Cambiar contraseña — solo master */}
+                  {admin?.rol === 'master' && editAdmin.rol !== 'master' && (
+                    <form onSubmit={async(e)=>{
+                      e.preventDefault()
+                      const errs = {}
+                      if (!pwAdminForm.nueva || pwAdminForm.nueva.length < 6) errs.nueva = 'Mínimo 6 caracteres'
+                      if (pwAdminForm.nueva !== pwAdminForm.confirmar) errs.confirmar = 'No coinciden'
+                      setPwAdminErrs(errs)
+                      if (Object.keys(errs).length) return
+                      setPwAdminSaving(true)
+                      try {
+                        await actualizarAdmin(editAdmin.id, { password_hash: btoa(pwAdminForm.nueva) })
+                        toast('Contraseña cambiada correctamente', 'success')
+                        setPwAdminForm({ nueva:'', confirmar:'' })
+                      } catch(err){ toast(err.message,'error') }
+                      finally { setPwAdminSaving(false) }
+                    }} noValidate style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                      <p style={{ fontSize:11, fontWeight:600, color:'var(--text-3)', textTransform:'uppercase', letterSpacing:'.04em' }}>Cambiar contraseña</p>
+                      {[
+                        { key:'nueva',    label:'Nueva contraseña',   ph:'Mínimo 6 caracteres' },
+                        { key:'confirmar',label:'Confirmar contraseña',ph:'Repita la contraseña' },
+                      ].map(f=>(
+                        <div key={f.key} style={{ display:'flex', flexDirection:'column', gap:4 }}>
+                          <label style={{ fontSize:11, fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.04em' }}>{f.label}</label>
+                          <input type="password" placeholder={f.ph} value={pwAdminForm[f.key]}
+                            onChange={e=>{ setPwAdminForm(x=>({...x,[f.key]:e.target.value})); setPwAdminErrs(x=>({...x,[f.key]:null})) }}
+                            style={{ padding:'8px 12px', border:`1px solid ${pwAdminErrs[f.key]?'var(--red)':'var(--border)'}`, borderRadius:'var(--radius)', fontSize:13, outline:'none' }}/>
+                          {pwAdminErrs[f.key] && <span style={{ fontSize:11, color:'var(--red)' }}>{pwAdminErrs[f.key]}</span>}
+                        </div>
+                      ))}
+                      <Button type="submit" loading={pwAdminSaving} variant="ghost" style={{ width:'100%', justifyContent:'center', padding:'8px' }}>
+                        Cambiar contraseña
+                      </Button>
+                    </form>
+                  )}
+                </Card>
+              )}
+
+              {/* Crear nuevo admin — solo master */}
+              {admin?.rol === 'master' && (
+                <Card style={{ padding:'18px' }}>
+                  <h3 style={{ fontSize:14, fontWeight:700, marginBottom:14 }}>Nuevo usuario admin</h3>
+                  <form onSubmit={handleCrearAdmin} noValidate style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                    {[
+                      { key:'dni',      label:'DNI',              placeholder:'12345678', max:8 },
+                      { key:'nombres',  label:'Nombres completos', placeholder:'Juan Pérez García' },
+                      { key:'username', label:'Username',          placeholder:'jperez' },
+                      { key:'password', label:'Contraseña',        placeholder:'Mínimo 6 caracteres', type:'password' },
+                    ].map(f => (
+                      <div key={f.key} style={{ display:'flex', flexDirection:'column', gap:4 }}>
+                        <label style={{ fontSize:11, fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.04em' }}>{f.label}</label>
+                        <input type={f.type||'text'} placeholder={f.placeholder} maxLength={f.max} value={newAdmin[f.key]}
+                          onChange={e => { setNewAdmin(x=>({...x,[f.key]:e.target.value})); setNewErrs(x=>({...x,[f.key]:null})) }}
+                          style={{ padding:'8px 12px', border:`1px solid ${newErrs[f.key]?'var(--red)':'var(--border)'}`, borderRadius:'var(--radius)', fontSize:13, outline:'none', fontFamily:f.key==='username'?'var(--mono)':'var(--font)' }}/>
+                        {newErrs[f.key] && <span style={{ fontSize:11, color:'var(--red)' }}>{newErrs[f.key]}</span>}
+                      </div>
+                    ))}
+                    <Button type="submit" loading={creating} style={{ marginTop:4, width:'100%', justifyContent:'center' }}>
+                      Crear usuario
+                    </Button>
+                  </form>
+                </Card>
+              )}
+            </div>
           </div>
         )}
       </div>

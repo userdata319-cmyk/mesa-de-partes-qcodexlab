@@ -1,7 +1,13 @@
 import { Link } from 'react-router-dom'
 import { Button } from './ui'
 
-export function SuccessScreen({ expediente, onNew }) {
+const TIPO_LABELS = {
+  ARBITRAJE: 'Solicitud de Arbitraje',
+  JPRD:      'Solicitud de JPRD',
+  OTRAS:     'Otras Solicitudes',
+}
+
+export function SuccessScreen({ expediente, tipoSolicitud, onNew }) {
   return (
     <div style={{ textAlign: 'center', padding: '3rem 2rem' }}>
       <div style={{
@@ -16,11 +22,18 @@ export function SuccessScreen({ expediente, onNew }) {
       </div>
 
       <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>¡Solicitud registrada!</h2>
-      <p style={{ fontSize: 14, color: 'var(--text-2)', marginBottom: 20 }}>Su expediente ha sido ingresado al sistema correctamente.</p>
+      <p style={{ fontSize: 14, color: 'var(--text-2)', marginBottom: 16 }}>Su expediente ha sido ingresado al sistema correctamente.</p>
+
+      {tipoSolicitud && (
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 14px', background: 'var(--red-light)', border: '1px solid var(--red-border)', borderRadius: 99, fontSize: 12, fontWeight: 600, color: 'var(--red)', marginBottom: 16 }}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          {TIPO_LABELS[tipoSolicitud] || tipoSolicitud}
+        </div>
+      )}
 
       <div style={{ display: 'inline-block', marginBottom: 8 }}>
         <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 6 }}>Número de expediente</p>
-        <div style={{ fontFamily: 'var(--mono)', fontSize: 26, fontWeight: 600, color: 'var(--red)', background: 'var(--red-light)', border: '1px solid var(--red-border)', padding: '10px 28px', borderRadius: 'var(--radius)', letterSpacing: '.08em' }}>
+        <div style={{ fontFamily: 'var(--mono)', fontSize: 28, fontWeight: 700, color: 'var(--red)', background: 'var(--red-light)', border: '1px solid var(--red-border)', padding: '10px 32px', borderRadius: 'var(--radius)', letterSpacing: '.08em' }}>
           {expediente}
         </div>
       </div>

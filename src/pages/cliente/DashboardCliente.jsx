@@ -79,6 +79,9 @@ export default function DashboardCliente() {
             <p style={{ fontSize: 13, fontWeight: 600 }}>{cliente?.nombres}</p>
             <p style={{ fontSize: 11, opacity: .75 }}>{cliente?.tipo_doc} {cliente?.documento}</p>
           </div>
+          <Link to="/perfil" style={{ background: 'rgba(255,255,255,.15)', border: '1px solid rgba(255,255,255,.3)', color: '#fff', padding: '5px 12px', borderRadius: 6, fontSize: 12, textDecoration: 'none' }}>
+            Editar perfil
+          </Link>
           <button onClick={logout} style={{ background: 'rgba(255,255,255,.15)', border: '1px solid rgba(255,255,255,.3)', color: '#fff', padding: '5px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}>
             Salir
           </button>
